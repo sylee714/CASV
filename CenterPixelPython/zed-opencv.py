@@ -50,8 +50,11 @@ def save_point_cloud(zed, filename) :
 def save_depth(zed, filename) :
     print("Saving Depth Map...")
     tmp = sl.Mat()
-    zed.retrieve_measure(tmp, sl.MEASURE.DEPTH)
-    saved = (tmp.write(filename + depth_format_ext) == sl.ERROR_CODE.SUCCESS)
+    # zed.retrieve_measure(tmp, sl.MEASURE.DEPTH)
+    # saved = (tmp.write(filename + depth_format_ext) == sl.ERROR_CODE.SUCCESS)
+    zed.retrieve_image(tmp, sl.VIEW.DEPTH)
+    depth_image_opencv = tmp.get_data()
+    saved = (cv2.imwrite((filename + depth_format_ext), depth_image_opencv) == sl.ERROR_CODE.SUCCESS)
     if saved :
         print("Done")
     else :
@@ -122,8 +125,8 @@ def main() :
     init.camera_resolution = sl.RESOLUTION.HD720
     init.depth_mode = sl.DEPTH_MODE.PERFORMANCE
     init.coordinate_units = sl.UNIT.METER
-    init.depth_minimum_distance = 0.3
-    init.depth_maximum_distance = 2
+    init.depth_minimum_distance = 0.5
+    init.depth_maximum_distance = 3
 
     # Open the camera
     err = zed.open(init)
