@@ -125,8 +125,8 @@ def main() :
     init.camera_resolution = sl.RESOLUTION.HD720
     init.depth_mode = sl.DEPTH_MODE.PERFORMANCE
     init.coordinate_units = sl.UNIT.METER
-    init.depth_minimum_distance = 0.5
-    init.depth_maximum_distance = 3
+    init.depth_minimum_distance = 1
+    init.depth_maximum_distance = 20
 
     # Open the camera
     err = zed.open(init)
