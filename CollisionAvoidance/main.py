@@ -191,46 +191,46 @@ def main():
             # Take a color image
             zed.retrieve_image(image_zed, sl.VIEW.LEFT, sl.MEM.CPU, image_size)
             # Take a depth image
-            zed.retrieve_image(depth_image_zed, sl.VIEW.LFET, sl.MEM.CPU, image_size)
+            zed.retrieve_image(depth_image_zed, sl.VIEW.DEPTH, sl.MEM.CPU, image_size)
 
             # To recover data from sl.Mat to use it with opencv, use the get_data() method
             # It returns a numpy array that can be used as a matrix with opencv
             image_ocv = image_zed.get_data()
             depth_image_ocv = depth_image_zed.get_data()
 
-            # Convert the depth img to binary
-            ret, img_binary = cv2.threshold(depth_image_zed, 5, 255, cv2.THRESH_BINARY)
+            # # Convert the depth img to binary
+            # ret, img_binary = cv2.threshold(depth_image_zed, 5, 255, cv2.THRESH_BINARY)
 
-            # Find the best space to move
-            templ_rect, center_rect = finding_best_space(img_binary)
+            # # Find the best space to move
+            # templ_rect, center_rect = finding_best_space(img_binary)
 
-            # Check if there is a space
-            is_space = False
-            if templ_rect and center_rect:
-                is_space = True
+            # # Check if there is a space
+            # is_space = False
+            # if templ_rect and center_rect:
+            #     is_space = True
 
-            # Drawing rectangles
-            # Template Rect = Blue
-            # Center Rect = Red
-            # OCV image
-            cv2.rectangle(image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            cv2.rectangle(image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+            # # Drawing rectangles
+            # # Template Rect = Blue
+            # # Center Rect = Red
+            # # OCV image
+            # cv2.rectangle(image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            # cv2.rectangle(image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
 
-            # Binary image
-            cv2.rectangle(img_binary, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            cv2.rectangle(img_binary, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+            # # Binary image
+            # cv2.rectangle(img_binary, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            # cv2.rectangle(img_binary, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
 
-            # OCV depth image
-            cv2.rectangle(depth_image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            cv2.rectangle(depth_image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+            # # OCV depth image
+            # cv2.rectangle(depth_image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            # cv2.rectangle(depth_image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
             
 
-            # Check if templ_rect and center_rect match within the error of margin
-            is_matched = check_rect_matched(templ_rect, center_rect)
+            # # Check if templ_rect and center_rect match within the error of margin
+            # is_matched = check_rect_matched(templ_rect, center_rect)
 
-            # Put text
-            put_text(img_binary, is_space, is_matched, templ_rect, center_rect)
-            put_text(image_ocv, is_space, is_matched, templ_rect, center_rect)
+            # # Put text
+            # put_text(img_binary, is_space, is_matched, templ_rect, center_rect)
+            # put_text(image_ocv, is_space, is_matched, templ_rect, center_rect)
 
             # Show images
             cv2.imshow("Real", image_ocv)
