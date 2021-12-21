@@ -7,6 +7,17 @@ import cv2
 # https://github.com/huy23tran11/Collision_Avoidance/blob/flight_test_2/src/main.cpp
 
 
+# Initialize colors
+red = (255, 0, 0)
+green = (0, 255, 0)
+blue = (0, 0, 255)
+line_thickness = 2
+font = cv2.FONT_HERSHEY_SIMPLEX
+font_scale = 4
+font_thickness = 3
+text1_loc = (200, 50)
+text2_loc = (50, 300)
+
 # Find best space that closet to the center then return true, return false if there is no space at all
 # img_binary = after converting depth_image_ocv to a binary image
 # templ_rect = cv::Rect
@@ -41,7 +52,7 @@ def finding_best_space(img_binary):
     space_loc_tf = finding_all_available_spaces(img_result_templ_matching)
 
     if len(space_loc_tf) <= 0:
-        return False
+        return (False, False)
     else:
         min_dis_index = finding_closest_space_to_center(space_loc_tf, center_frame_tf)
         top_left = (cropped_frame_tf[0] + space_loc_tf[min_dis_index][0], cropped_frame_tf[1] + space_loc_tf[min_dis_index][1])
@@ -80,6 +91,171 @@ def finding_closest_space_to_center(space_loc_tf, center_frame_tf):
     
     return min_dist_index
 
+# rect is a tuple in (top_left_x, top_left_y, width, height)
+def get_rect_bottom_right(rectangle):
+    return (rectangle[0] + rectangle[2], rectangle[1] + rectangle[3])
 
-    # Need a sample image to test the above methods
+def check_rect_matched(templ_rect, center_rect):
+    error = 5
+    return templ_rect[0] < center_rect[0] + error and templ_rect[0] > center_rect[0] - error
+
+def put_text(image, is_space, is_matched, templ_rect, center_rect):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 4
+    if not is_space:
+        cv2.putText(image, "STOP", text1_loc, font, font_scale, red, font_thickness)
+        cv2.putText(image, "Obstacle Detected", text2_loc, font, font_scale, red, font_thickness)
+    elif is_matched:
+        cv2.putTex(image, "Go to Location", text1_loc, font, font_scale, blue, font_thickness)
+    elif not is_matched:
+        # Slide Right
+        if templ_rect[0] - center_rect[0] > 0:
+            cv2.putText(image, "Slide Right", text1_loc, font, font_scale, blue, font_thickness)
+            cv2.putText(image, "Obstacle Detected", text2_loc, font, font_scale, red, font_thickness)
+        # Sldie Left
+        else:
+            cv2.putText(image, "Slide Left", text1_loc, font, font_scale, blue, font_thickness)
+            cv2.putText(image, "Obstacle Detected", text2_loc, font, font_scale, red, font_thickness)
+    else:
+        cv2.putText(image, "STOP, Cannot Figure What To Do", text1_loc, font, font_scale, red, font_thickness)
+
+
+def main():
+    # ----------------------------------------------------------------
+    # Need to add Pymovement here?
+    # Skip for now
+    # ----------------------------------------------------------------
+
+    # Initialize a ZED camera and set the initial parameters
+    zed = sl.Camera()
+    init_params = sl.InitParameters()
+    init_params.camera_resolution = sl.RESOLUTION.VGA
+    init_params.depth_mode = sl.DEPTH_MODE.PERFORMANCE
+    init_params.coordinate_units = sl.UNIT.METER
+    # Need to vary depth distances depending on testing environments
+    init_params.depth_minimum_distance = 0.5
+    init_params.depth_maximum_distance = 1
+
+    # For Video Playback?
+    # Refer to https://github.com/stereolabs/zed-examples/blob/master/svo%20recording/playback/python/svo_playback.py
+    # and https://www.stereolabs.com/docs/video/using-video/
+    # if len(sys.argv) != 2:
+    #     print("Plese specify path to .svo file.")
+    #     exit()
+
+    # filepath = sys.argv[1]
+    # init_params.set_from_svo_file(filepath)
+
+    # Open the camera
+    err = zed.open(init_params)
+
+    # Check the status of the camera
+    if err != sl.ERROR_CODE.SUCCESS:
+        print("Error {}, exit program".format(err)) # Display the error
+        exit()
+    
+    # A bool var 
+    # is_moving_to_target = False
+
+    # Set runtime parameters after opening the camera
+    # To change the depth sensing mode to FILL
+    runtime = sl.RuntimeParameters()
+    runtime.sensing_mode = sl.SENSING_MODE.FILL
+
+    # Get the image size
+    image_size = zed.get_camera_information().camera_resolution
+
+    # Declare your sl.Mat metrics
+    image_zed = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
+    depth_image_zed = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
+
+    # ----------------------------------------------------------------
+    # To count FPS?
+    fps = 0
+
+    # For saving
+    final_real_img = ""
+    final_binary_img = ""
+    final_depth_img = ""
+
+    # For video capturing
+    # Skip for now
+    # ----------------------------------------------------------------
+
+
+    # Start the collision avoidance
+    terminated = False
+    while not terminated:
+        if zed.grab(runtime) == sl.ERROR_CODE.SUCCESS:
+            
+            # Take a color image
+            zed.retrieve_image(image_zed, sl.VIEW.LEFT, sl.MEM.CPU, image_size)
+            # Take a depth image
+            zed.retrieve_image(depth_image_zed, sl.VIEW_LFET, sl.MEM_GPU, image_size)
+
+            # To recover data from sl.Mat to use it with opencv, use the get_data() method
+            # It returns a numpy array that can be used as a matrix with opencv
+            image_ocv = image_zed.get_data()
+            depth_image_ocv = depth_image_zed.get_data()
+
+            # Convert the depth img to binary
+            ret, img_binary = cv2.threshold(depth_image_zed, 5, 255, cv2.THRESH_BINARY)
+
+            # Find the best space to move
+            templ_rect, center_rect = finding_best_space(img_binary)
+
+            # Check if there is a space
+            is_space = False
+            if templ_rect and center_rect:
+                is_space = True
+
+            # Drawing rectangles
+            # Template Rect = Blue
+            # Center Rect = Red
+            # OCV image
+            cv2.rectangle(image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            cv2.rectangle(image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+
+            # Binary image
+            cv2.rectangle(img_binary, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            cv2.rectangle(img_binary, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+
+            # OCV depth image
+            cv2.rectangle(depth_image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
+            cv2.rectangle(depth_image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+            
+
+            # Check if templ_rect and center_rect match within the error of margin
+            is_matched = check_rect_matched(templ_rect, center_rect)
+
+            # Put text
+            put_text(img_binary, is_space, is_matched, templ_rect, center_rect)
+            put_text(image_ocv, is_space, is_matched, templ_rect, center_rect)
+
+            # Show images
+            cv2.imshow("Real", image_ocv)
+            cv2.imshow("Binary", img_binary)
+            cv2.imshow("Depth", depth_image_ocv)
+
+            # ----------------------------------------------------------------
+            # Calls the manuver method
+            # Skip for now
+
+            # Save image
+            # Skip for now
+            # ----------------------------------------------------------------
+
+        # Need to check for the key
+        # if pressed == 'q', terminate
+        key = cv2.waitKey(1)
+        if key == 81 or key == 113: # ASCII codes of 'q' and 'Q'
+            terminated = True
+
+    cv2.destroyAllWindwos()
+    zed.close()
+
+
+if __name__ == "__main__":
+    main()
+
     
