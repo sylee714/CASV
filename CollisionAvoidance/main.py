@@ -191,7 +191,7 @@ def main():
             # Take a color image
             zed.retrieve_image(image_zed, sl.VIEW.LEFT, sl.MEM.CPU, image_size)
             # Take a depth image
-            zed.retrieve_image(depth_image_zed, sl.VIEW.LFET, sl.MEM.GPU, image_size)
+            zed.retrieve_image(depth_image_zed, sl.VIEW.LFET, sl.MEM.CPU, image_size)
 
             # To recover data from sl.Mat to use it with opencv, use the get_data() method
             # It returns a numpy array that can be used as a matrix with opencv
