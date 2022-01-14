@@ -8,105 +8,89 @@ import cv2
 
 
 # Initialize colors
-red = (255, 0, 0)
+blue = (255, 0, 0)
 green = (0, 255, 0)
-blue = (0, 0, 255)
+red = (0, 0, 255)
 line_thickness = 2
 font = cv2.FONT_HERSHEY_SIMPLEX
-font_scale = 4
-font_thickness = 3
+font_scale = 1/2
+font_thickness = 2
 text1_loc = (200, 50)
 text2_loc = (50, 300)
+templ_w = 200 # dimension of the drone at 5m with 50% bigger 133/100 * 150, recommend 300 for safer avoiding
+templ_h = 83 # dimention of the drone at 5m with 50% bigger 55/100 * 150
 
-# Find best space that closet to the center then return true, return false if there is no space at all
+# Finds best space that closet to the center then return true, return false if there is no space at all
 # img_binary = after converting depth_image_ocv to a binary image
 # templ_rect = cv::Rect
 # center_rect = cv::Rect
 def finding_best_space(img_binary):
-
+    # Get the shape of the binary image
     img_binary_h, img_binary_w, img_binary_channels = img_binary.shape
-    templ_w = 200 # dimension of the drone at 5m with 50% bigger 133/100 * 150, recommend 300 for safer avoiding
-    templ_h = 83 # dimention of the drone at 5m with 50% bigger 55/100 * 150
-    
+
     # Create a template that is all black
-    temp1 = np.array((templ_h, templ_w, cv2.CV_8U), cv2.Scalar(0,0,0))
+    # To use with the "matchTemplate" method, the dim should be only 2
+    templ = np.zeros((templ_h, templ_w), np.uint8)
 
     # Top left point of the frame in the center
-    center_frame_tf = ((img_binary_w / 2) - (templ_w / 2), (img_binary_h / 2) - (templ_h / 2))
+    center_frame_tf = (int((img_binary_w / 2) - (templ_w / 2)), int((img_binary_h / 2) - (templ_h / 2)))
     center_rect = (center_frame_tf[0], center_frame_tf[1], templ_w, templ_h)
 
-    # binary img need to be formatted to be used for template matching algothsm
+    # binary img need to be formatted to be used for template matching algorithm
     # convert to a gray
     img_binary_formatted = cv2.cvtColor(img_binary, cv2.COLOR_BGR2GRAY)
 
     # Crop the center of the image with a size of (templ_h x original image width)
-    img_binary_cropped = img_binary_formatted[center_frame_tf[1]:(center_frame_tf[1]+templ_h+1) , :]
+    center_frame_start_y = center_frame_tf[1]
+    center_frame_end_y = center_frame_tf[1]+templ_h+1
+    img_binary_cropped = img_binary_formatted[center_frame_start_y:center_frame_end_y , :]
 
-    # Top left point of the cropped frame
-    cropped_frame_tf = (0, center_frame_tf[1])
+    # Do the template mathcing on the cropped image
+    res = cv2.matchTemplate(img_binary_cropped, templ, cv2.TM_SQDIFF)
 
-    # Refer to here to learn about cv::matchTemplate()
-    # https://docs.opencv.org/3.4/de/da9/tutorial_template_matching.html
-    img_result_templ_matching = cv2.matchTemplate(img_binary_cropped, temp1, cv2.TM_SQDIFF)
+    threshold = 0.0 # Since we are using "TM_SQDIFF", we need to find the minimum
+    yloc, xloc = np.where(res == threshold) # only get the ones that are completely black
 
-    space_loc_tf = finding_all_available_spaces(img_result_templ_matching)
+    # If the len > 0, then there is an open space
+    if len(yloc) > 0:
+        # Initialize with the 1st open space
+        closest_space = (xloc[0], yloc[0])
+        closest_space_euclidean_distance = euclidean_distance(closest_space, center_frame_tf)
 
-    if len(space_loc_tf) <= 0:
-        return (False, False)
-    else:
-        min_dis_index = finding_closest_space_to_center(space_loc_tf, center_frame_tf)
-        top_left = (cropped_frame_tf[0] + space_loc_tf[min_dis_index][0], cropped_frame_tf[1] + space_loc_tf[min_dis_index][1])
-        templ_rect = (top_left[0], top_left[1], templ_w, templ_h)
+        # Go thru all the open spaces and find the closest one from the center frame
+        for (x,y) in zip(xloc, yloc):
+            cur_space_top_left= (x, y+center_frame_tf[1])
+            cur_euclidean_distance = euclidean_distance(cur_space_top_left, center_frame_tf)
+            if cur_euclidean_distance < closest_space_euclidean_distance:
+                closest_space_euclidean_distance = cur_euclidean_distance
+                closest_space = cur_space_top_left
+
+        templ_rect = (closest_space[0], closest_space[1], templ_w, templ_h)
         return (templ_rect, center_rect)
+    # Return templ_rect as False, if there is no open space
+    else:
+        return (False, center_rect)
 
-
-# Find all available spaces and returns them as a list
-def finding_all_available_spaces(img_result_templ_matching):
-    space_loc_tf = []
-    rows, cols, channels = img_result_templ_matching.shape
-    for i in range(rows):
-        for j in range(cols):
-            if img_result_templ_matching[i, j] == 0:
-                space_loc_tf.append((j, i))
-    return space_loc_tf
-
+# Calculates the Euclidean distance between 2 points
 def euclidean_distance(point1, point2):
-    return math.sqrt(math.pow(point1[0]-point2[0]) + math.pow(point1[1]-point2[1]))
-
-# From all available spaces, find the closet space to the center then return the index of that space rectangle in the vector
-def finding_closest_space_to_center(space_loc_tf, center_frame_tf):
-    distances = []
-
-    # Go thru each space location and calculate the euclidean distance between the center frame
-    for i in range(len(space_loc_tf)):
-        distances.append(euclidean_distance(space_loc_tf[i], center_frame_tf))
-
-    # Find the minimum distance and its index
-    min_dist = distances[0]
-    min_dist_index = 0
-    for i in range(len(distances)):
-        if min_dist < distances[i]:
-            min_dist = distances[i]
-            min_dist = i
-    
-    return min_dist_index
+    return math.sqrt(math.pow(point1[0]-point2[0], 2) + math.pow(point1[1]-point2[1], 2))
 
 # rect is a tuple in (top_left_x, top_left_y, width, height)
 def get_rect_bottom_right(rectangle):
     return (rectangle[0] + rectangle[2], rectangle[1] + rectangle[3])
 
+# Checks if the found open space template rect is close/same to the center rect
 def check_rect_matched(templ_rect, center_rect):
     error = 5
     return templ_rect[0] < center_rect[0] + error and templ_rect[0] > center_rect[0] - error
 
+# Displays texts depending on a situation
 def put_text(image, is_space, is_matched, templ_rect, center_rect):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 4
     if not is_space:
         cv2.putText(image, "STOP", text1_loc, font, font_scale, red, font_thickness)
         cv2.putText(image, "Obstacle Detected", text2_loc, font, font_scale, red, font_thickness)
     elif is_matched:
-        cv2.putTex(image, "Go to Location", text1_loc, font, font_scale, blue, font_thickness)
+        cv2.putText(image, "Go to Location", text1_loc, font, font_scale, blue, font_thickness)
     elif not is_matched:
         # Slide Right
         if templ_rect[0] - center_rect[0] > 0:
@@ -125,6 +109,11 @@ def main():
     # Need to add Pymovement here?
     # Skip for now
     # ----------------------------------------------------------------
+    # 1. connectionFunc
+    # 2. setLocation
+    # 3. arm_and_takeoff
+    # 4. setTargetLoc
+
 
     # Initialize a ZED camera and set the initial parameters
     zed = sl.Camera()
@@ -164,6 +153,8 @@ def main():
 
     # Get the image size
     image_size = zed.get_camera_information().camera_resolution
+    print("Image Width: ", image_size.width)
+    print("Image Height: ",image_size.height)
 
     # Declare your sl.Mat metrics
     image_zed = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
@@ -198,39 +189,34 @@ def main():
             image_ocv = image_zed.get_data()
             depth_image_ocv = depth_image_zed.get_data()
 
-            # # Convert the depth img to binary
-            # ret, img_binary = cv2.threshold(depth_image_zed, 5, 255, cv2.THRESH_BINARY)
+            # Convert the depth img to binary
+            ret, img_binary = cv2.threshold(depth_image_ocv, 5, 255, cv2.THRESH_BINARY)
+            img_binary = cv2.cvtColor(img_binary, cv2.COLOR_BGRA2BGR)
 
-            # # Find the best space to move
+            # Find the best space to move
             # templ_rect, center_rect = finding_best_space(img_binary)
+            templ_rect, center_rect = finding_best_space(img_binary)
 
-            # # Check if there is a space
-            # is_space = False
-            # if templ_rect and center_rect:
-            #     is_space = True
+            # Draw rects on the center always
+            cv2.rectangle(image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), blue, line_thickness)
+            cv2.rectangle(img_binary, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), blue, line_thickness)
+            cv2.rectangle(depth_image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), blue, line_thickness)
 
-            # # Drawing rectangles
-            # # Template Rect = Blue
-            # # Center Rect = Red
-            # # OCV image
-            # cv2.rectangle(image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            # cv2.rectangle(image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+            # If there is an open space, draw the rectangles
+            if templ_rect:
+                # Check if the open space is the center
+                is_matched = check_rect_matched(templ_rect, center_rect)
 
-            # # Binary image
-            # cv2.rectangle(img_binary, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            # cv2.rectangle(img_binary, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
+                cv2.rectangle(image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), red, line_thickness)
+                cv2.rectangle(img_binary, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), red, line_thickness)
+                cv2.rectangle(depth_image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), red, line_thickness)
+                put_text(img_binary, True, is_matched, templ_rect, center_rect)
+                put_text(image_ocv, True, is_matched, templ_rect, center_rect)
 
-            # # OCV depth image
-            # cv2.rectangle(depth_image_ocv, (templ_rect[0], templ_rect[1]), get_rect_bottom_right(templ_rect), blue, line_thickness)
-            # cv2.rectangle(depth_image_ocv, (center_rect[0], center_rect[1]), get_rect_bottom_right(center_rect), red, line_thickness)
-            
-
-            # # Check if templ_rect and center_rect match within the error of margin
-            # is_matched = check_rect_matched(templ_rect, center_rect)
-
-            # # Put text
-            # put_text(img_binary, is_space, is_matched, templ_rect, center_rect)
-            # put_text(image_ocv, is_space, is_matched, templ_rect, center_rect)
+            # If there is no open space, display no open space
+            else:
+                put_text(img_binary, False, False, templ_rect, center_rect)
+                put_text(image_ocv, False, False, templ_rect, center_rect)
 
             # Show images
             cv2.imshow("Real", image_ocv)
@@ -251,7 +237,7 @@ def main():
         if key == 81 or key == 113: # ASCII codes of 'q' and 'Q'
             terminated = True
 
-    cv2.destroyAllWindwos()
+    cv2.destroyAllWindows()
     zed.close()
 
 
