@@ -59,7 +59,6 @@ def main():
 
     image_size = zed.get_camera_information().camera_resolution
     image_zed = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
-
     depth_map = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
     depth_for_display = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
 
@@ -73,22 +72,27 @@ def main():
             zed.retrieve_image(image_zed, sl.VIEW.LEFT, sl.MEM.CPU, image_size)
             image_ocv = image_zed.get_data()
 
+            # Retrieve depth
+            zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH)
+            zed.retrieve_image(depth_for_display, sl.VIEW.DEPTH, sl.MEM.CPU, image_size)
+            depth_image_ocv = depth_for_display.get_data()
+
             for object in objects.object_list:
                 detected_label = str(object.label)
                 if detected_label == 'Person' or detected_label == 'Vehicle':
                     top_left = (int(object.bounding_box_2d[0][0]), int(object.bounding_box_2d[0][1]))
                     bottom_right = (int(object.bounding_box_2d[2][0]), int(object.bounding_box_2d[2][1]))
                     cv2.rectangle(image_ocv, top_left, bottom_right, blue, line_thickness)
-
                     cv2.rectangle(depth_image_ocv, top_left, bottom_right, blue, line_thickness)
                     obj_center = ((top_left[0]+bottom_right[0])//2, (top_left[1]+bottom_right[1])//2)
                     err, depth_value = depth_map.get_value(obj_center[0], obj_center[1])
-                    label_and_depth = detected_label + " || " + str(round(depth_value, 3)) + "m"
+                    label_and_depth = detected_label + " || " + str(round(depth_value, 3))
                     # if the thickness = -1, it fills the rectangle
                     # add a small rectangle behind the label text?
                     # cv2.rectangle(image_ocv, top_left, bottom_right, blue, line_thickness)
                     cv2.putText(image_ocv, label_and_depth, top_left, font, font_scale, red, font_thickness)
                     cv2.putText(depth_image_ocv, label_and_depth, top_left, font, font_scale, red, font_thickness)
+
 
             cv2.imshow("Real", image_ocv)
             cv2.imshow("Depth", depth_image_ocv)
