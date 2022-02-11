@@ -15,10 +15,7 @@ font_scale = 1
 font_thickness = 1
 
 # https://www.stereolabs.com/docs/api/classsl_1_1Objects.html
-<<<<<<< HEAD
 # https://community.stereolabs.com/t/how-to-get-position-of-a-detected-object-relative-to-the-world/172/2
-=======
->>>>>>> 880296802242dce91a11432fbe5b9004e6caa5fc
 # API for Object Detection
 def main():
     # Create a Camera object
@@ -30,11 +27,8 @@ def main():
     init_params.depth_mode = sl.DEPTH_MODE.PERFORMANCE
     init_params.coordinate_units = sl.UNIT.METER
     init_params.sdk_verbose = True
-<<<<<<< HEAD
     init_params.depth_minimum_distance = 0.5
     init_params.depth_maximum_distance = 1
-=======
->>>>>>> 880296802242dce91a11432fbe5b9004e6caa5fc
 
     # Open the camera
     err = zed.open(init_params)
@@ -65,11 +59,10 @@ def main():
 
     image_size = zed.get_camera_information().camera_resolution
     image_zed = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
-<<<<<<< HEAD
+
     depth_map = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
     depth_for_display = sl.Mat(image_size.width, image_size.height, sl.MAT_TYPE.U8_C4)
-=======
->>>>>>> 880296802242dce91a11432fbe5b9004e6caa5fc
+
 
     terminated = False
     while not terminated:
@@ -80,21 +73,13 @@ def main():
             zed.retrieve_image(image_zed, sl.VIEW.LEFT, sl.MEM.CPU, image_size)
             image_ocv = image_zed.get_data()
 
-<<<<<<< HEAD
-            # Retrieve depth
-            zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH)
-            zed.retrieve_image(depth_for_display, sl.VIEW.DEPTH, sl.MEM.CPU, image_size)
-            depth_image_ocv = depth_for_display.get_data()
-
-=======
->>>>>>> 880296802242dce91a11432fbe5b9004e6caa5fc
             for object in objects.object_list:
                 detected_label = str(object.label)
                 if detected_label == 'Person' or detected_label == 'Vehicle':
                     top_left = (int(object.bounding_box_2d[0][0]), int(object.bounding_box_2d[0][1]))
                     bottom_right = (int(object.bounding_box_2d[2][0]), int(object.bounding_box_2d[2][1]))
                     cv2.rectangle(image_ocv, top_left, bottom_right, blue, line_thickness)
-<<<<<<< HEAD
+
                     cv2.rectangle(depth_image_ocv, top_left, bottom_right, blue, line_thickness)
                     obj_center = ((top_left[0]+bottom_right[0])//2, (top_left[1]+bottom_right[1])//2)
                     err, depth_value = depth_map.get_value(obj_center[0], obj_center[1])
@@ -105,18 +90,8 @@ def main():
                     cv2.putText(image_ocv, label_and_depth, top_left, font, font_scale, red, font_thickness)
                     cv2.putText(depth_image_ocv, label_and_depth, top_left, font, font_scale, red, font_thickness)
 
-
             cv2.imshow("Real", image_ocv)
             cv2.imshow("Depth", depth_image_ocv)
-=======
-                    # if the thickness = -1, it fills the rectangle
-                    # add a small rectangle behind the label text?
-                    # cv2.rectangle(image_ocv, top_left, bottom_right, blue, line_thickness)
-                    cv2.putText(image_ocv, detected_label, top_left, font, font_scale, red, font_thickness)
-
-
-            cv2.imshow("Real", image_ocv)
->>>>>>> 880296802242dce91a11432fbe5b9004e6caa5fc
 
         # Need to check for the key
         # if pressed == 'q', terminate
