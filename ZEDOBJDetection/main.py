@@ -4,6 +4,23 @@ import numpy as np
 import pyzed.sl as sl
 import cv2
 
+# Get the depth of the detected object.
+# It examines 5 pixels: center. top right center, top left center, bottom right center, and bottom left center
+# Then, it returns the highest value.
+def get_depth(depthMap, center, topLeft, bottomRight):
+    top_left_center = ((topLeft[0]+center[0])/2,(topLeft[1]+center[1])/2)
+    bottom_right_center = ((center[0]+bottomRight[0])/2,(center[1]+bottomRight[1])/2)
+    top_right_center = (top_left_center[0], bottom_right_center[1])
+    top_left_center = (bottom_right_center[0], top_left_center[1])
+
+    err, center_depth = depth_map.get_value(center[0], center[1])
+    # 4 other depths
+    # err, center_depth = depth_map.get_value(center[0], center[1])
+    # err, center_depth = depth_map.get_value(center[0], center[1])
+    # err, center_depth = depth_map.get_value(center[0], center[1])
+    # err, center_depth = depth_map.get_value(center[0], center[1])
+    pass
+
 # Initialize colors
 blue = (255, 0, 0)
 green = (0, 255, 0)
@@ -11,7 +28,7 @@ red = (0, 0, 255)
 black = (255, 255, 255)
 line_thickness = 2
 font = cv2.FONT_HERSHEY_SIMPLEX
-font_scale = 1
+font_scale = 0.3
 font_thickness = 1
 
 # https://www.stereolabs.com/docs/api/classsl_1_1Objects.html
@@ -86,7 +103,7 @@ def main():
                     cv2.rectangle(depth_image_ocv, top_left, bottom_right, blue, line_thickness)
                     obj_center = ((top_left[0]+bottom_right[0])//2, (top_left[1]+bottom_right[1])//2)
                     err, depth_value = depth_map.get_value(obj_center[0], obj_center[1])
-                    label_and_depth = detected_label + " || " + str(round(depth_value, 3))
+                    label_and_depth = detected_label + " || " + str(round(depth_value, 3)) + " || OBJ Coordinate: Top Left = " + str(top_left) + ", Bottom Right = " + str(bottom_right) + ", Center Pixel = " + str(obj_center)
                     # if the thickness = -1, it fills the rectangle
                     # add a small rectangle behind the label text?
                     # cv2.rectangle(image_ocv, top_left, bottom_right, blue, line_thickness)
