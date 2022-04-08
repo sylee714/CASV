@@ -145,23 +145,25 @@ def correct_real_img_format(real_image):
     return cv2.cvtColor(correct_real_image, cv2.COLOR_RGB2BGR)
 
 def main():
-    # ----------------------------------------------------------------
+    # --------------------------------------------------------------
+    # PyMovement Functions
     # 1. connectionFunc
     # 2. setLocation
     # 3. arm_and_takeoff
     # 4. setTargetLoc
 
     # Call the connection function
-    # connectionFunc()
+    connectionFunc()
 
     # Set the home location
-    # setLocation()
+    setLocation()
 
     # Arm and takeoff
-    # arm_and_takeoff()
+    arm_and_takeoff()
 
     # Set the target location
-    # setTargetLoc()
+    setTargetLoc()
+    # --------------------------------------------------------------
 
     # Initialize a ZED camera and set the initial parameters
     zed = sl.Camera()
@@ -283,7 +285,7 @@ def main():
                 put_text(image_ocv, True, is_matched, templ_rect, center_rect)
 
                 # Send the command
-                # manuver(True, is_matched, templ_rect, center_rect)
+                manuver(True, is_matched, templ_rect, center_rect)
 
             # If there is no open space, display no open space
             else:
@@ -292,7 +294,7 @@ def main():
                 put_text(image_ocv, False, False, templ_rect, center_rect)
 
                 # Send the command
-                # manuver(False, is_matched, templ_rect, center_rect)
+                manuver(False, is_matched, templ_rect, center_rect)
 
             # ---------------------------OPEN SPACE DETECTION----------------------------
 
