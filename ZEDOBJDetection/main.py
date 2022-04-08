@@ -45,7 +45,7 @@ def main():
     init_params.coordinate_units = sl.UNIT.METER
     init_params.sdk_verbose = True
     init_params.depth_minimum_distance = 0.5
-    init_params.depth_maximum_distance = 1
+    init_params.depth_maximum_distance = 10
 
     # Open the camera
     err = zed.open(init_params)
